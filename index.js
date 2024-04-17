@@ -421,7 +421,7 @@ client.once("ready", async () => {
             infochannel("Connected Database");
         })
         .catch((error) => {
-            errorlog("Connect Database fail", error.message);
+            errorlog("Connect Database fail", error);
         });
     let guild_counter = 0;
     client.guilds.cache.forEach(async (guild) => {
@@ -2065,7 +2065,7 @@ client.on("messageCreate", async (message) => {
 });
 
 client.login(token).catch((error) => {
-    errorlog("Login fail ", error.message);
+    errorlog("Login fail ", error);
 });
 function checkPermissions(interaction) {
     if (
@@ -2332,7 +2332,7 @@ async function updateBotFromGitHub() {
         fs.writeFileSync("index.js", newCode);
         infochannel("Updating success.");
     } catch (error) {
-        errorlog("Updating bot from GitHub", error.message);
+        errorlog("Updating bot from GitHub", error);
     }
 }
 
@@ -2340,7 +2340,7 @@ function restartBot() {
     console.log("Restarting bot...");
     exec("node index.js", (error, stdout, stderr) => {
         if (error) {
-            errorlog("Restarting bot", error.message);
+            errorlog("Restarting bot", error);
             return;
         }
         console.log("Bot restarted successfully");
@@ -2363,6 +2363,7 @@ client.on("error", async (error) => {
 });
 process.on("uncaughtException", (err) => {
     errorlog("Uncaught Exception", err);
+    console.log(err);
     const channel = client.channels.cache.get(errorchannelid);
     const time = Math.floor(Date.now() / 1000);
     const errorEmbed = new EmbedBuilder()
