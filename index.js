@@ -15,7 +15,6 @@ const {
     ApplicationCommandType,
     AttachmentBuilder,
 } = require("discord.js");
-const { createCanvas, loadImage } = require("canvas"); 
 const {
     mongodb,
     token,
@@ -24,15 +23,17 @@ const {
     logchannelid,
     githubtoken,
 } = require("./config.json");
+const createCanvas = require("canvas");
 const si = require("systeminformation");
 const os = require("os");
 const packageJson = require("./package.json");
 const fs = require("fs");
-
 const moment = require("moment");
 const startTime = moment();
-const { exec } = require("child_process");
+const exec = require("child_process");
 const axios = require("axios");
+const rest = new REST({ version: "10" }).setToken(token);
+const mongoose = require("mongoose");
 
 const client = new Client({
     intents: [
@@ -43,7 +44,6 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
     ],
 });
-const mongoose = require("mongoose");
 
 const commands = [
     new SlashCommandBuilder()
@@ -133,14 +133,13 @@ const commands = [
             subcommand
                 .setName("delete")
                 .setDescription("Deletes specified number of messages")
-                .addIntegerOption(
-                    (option) =>
-                        option
-                            .setName("count")
-                            .setDescription("Number of messages to delete")
-                            .setRequired(true)
-                            .setMinValue(1) 
-                            .setMaxValue(100) 
+                .addIntegerOption((option) =>
+                    option
+                        .setName("count")
+                        .setDescription("Number of messages to delete")
+                        .setRequired(true)
+                        .setMinValue(1)
+                        .setMaxValue(100)
                 )
         )
         .addSubcommand((subcommand) =>
@@ -412,8 +411,6 @@ const admincommand = [
         ),
 ];
 
-const rest = new REST({ version: "10" }).setToken(token);
-
 client.once("ready", async () => {
     const endTime = moment();
     const loginTime = moment.duration(endTime.diff(startTime)).asSeconds();
@@ -448,29 +445,7 @@ client.once("ready", async () => {
         body: admincommand,
     });
 });
-function infochannel(content) {
-    const channel = client.channels.cache.get(logchannelid);
-    const endTime = moment();
-    const currentTime = endTime.format("YYYY-MM-DD HH:mm:ss");
-    channel.send(`[${currentTime}] INFO: ${content}`);
-    console.log(`[${currentTime}] INFO: ${content}`);
-}
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-function toUnixTimestamp(uptimeSeconds) {
-    const now = Math.floor(Date.now() / 1000); 
-    return now - uptimeSeconds;
-}
-function countLines(file, callback) {
-    fs.readFile(file, "utf8", function (err, data) {
-        if (err) {
-            return;
-        }
-        const lines = data.split("\n").length;
-        callback(lines);
-    });
-}
+
 client.on("interactionCreate", async (interaction) => {
     const { commandName, options, customId, guild } = interaction;
     const language = interaction.locale;
@@ -487,11 +462,11 @@ client.on("interactionCreate", async (interaction) => {
             const user = interaction.targetUser;
             const avatarURL = user.displayAvatarURL({
                 dynamic: true,
-                size: 4096,
+                size: 1024,
             });
             const avatarEmbed = new EmbedBuilder()
                 .setColor(0x0099ff)
-                .setTitle(`Avatar-${user.username}`)
+                .setTitle(`${user.username}'s Avatar`)
                 .setImage(avatarURL);
             interaction.reply({ embeds: [avatarEmbed] });
         }
@@ -509,14 +484,15 @@ client.on("interactionCreate", async (interaction) => {
 
             let banner;
             if (userData.banner) {
-                banner = `https://cdn.discordapp.com/banners/${user.id}/${userData.banner}?size=2048`;
                 if (userData.banner.startsWith("a_")) {
                     banner = `https://cdn.discordapp.com/banners/${user.id}/${userData.banner}.gif?size=2048`;
+                } else {
+                    banner = `https://cdn.discordapp.com/banners/${user.id}/${userData.banner}?size=2048`;
                 }
 
                 const avatarEmbed = new EmbedBuilder()
                     .setColor(0x0099ff)
-                    .setTitle(`Banner-${user.username}`)
+                    .setTitle(`${user.username}'s Banner`)
                     .setImage(banner);
 
                 interaction.reply({ embeds: [avatarEmbed] });
@@ -524,7 +500,7 @@ client.on("interactionCreate", async (interaction) => {
             } else {
                 const canvas = createCanvas(1024, 410);
                 const ctx = canvas.getContext("2d");
-                ctx.fillStyle = userData.banner_color || "#ffffff"; 
+                ctx.fillStyle = userData.banner_color || "#ffffff";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 const fileName = `banner_${user.id}.png`;
@@ -537,7 +513,7 @@ client.on("interactionCreate", async (interaction) => {
                     banner = `attachment://${fileName}`;
                     const avatarEmbed = new EmbedBuilder()
                         .setColor(0x0099ff)
-                        .setTitle(`Banner-${user.username}`)
+                        .setTitle(`${user.username}'s Banner`)
                         .setImage(banner);
                     interaction
                         .reply({ embeds: [avatarEmbed], files: [file] })
@@ -872,14 +848,14 @@ client.on("interactionCreate", async (interaction) => {
             let discordVersion = packageJson.dependencies["discord.js"];
             discordVersion = discordVersion.replace("^", "Discord.js ");
 
-            const startTime = Date.now(); 
-            const uptimeSeconds = os.uptime(); 
-            const uptimeTimestamp = parseInt(toUnixTimestamp(uptimeSeconds)); 
+            const startTime = Date.now();
+            const uptimeSeconds = os.uptime();
+            const uptimeTimestamp = parseInt(toUnixTimestamp(uptimeSeconds));
             const totalMemoryMB = bytesToMB(memoryData.total);
             const usedMemoryMB = bytesToMB(memoryData.used);
             const memoryUsagePercentage = (usedMemoryMB / totalMemoryMB) * 100;
-            const endTime = Date.now(); 
-            const ping = endTime - startTime; 
+            const endTime = Date.now();
+            const ping = endTime - startTime;
             let embed;
             let gun = false;
 
@@ -1797,19 +1773,7 @@ client.on("interactionCreate", async (interaction) => {
         }
     }
 });
-function formatMonths(configuredMonths) {
-    const years = Math.floor(configuredMonths / 12);
-    const months = configuredMonths % 12;
-    if (years > 0 && months > 0) {
-        return `${years} year(s) ${months} month(s)`;
-    } else if (years > 0) {
-        return `${years} year(s)`;
-    } else if (months > 0) {
-        return `${months} month(s)`;
-    } else {
-        return "0 month(s)";
-    }
-}
+
 client.on("messageDelete", async (deletedMessage) => {
     if (deletedMessage.author.bot) return;
 
@@ -2032,249 +1996,7 @@ client.on("guildMemberAdd", async (member) => {
         channel.send({ embeds: [blockEmbed] });
     }
 });
-client.on("error", async (error) => {
-    errorlog("caughtException", error.message);
-    console.log(error);
-    const channel = client.channels.cache.get(errorchannelid);
-    const time = Math.floor(Date.now() / 1000);
-    const errorEmbed = new EmbedBuilder()
-        .setTitle("Error")
-        .setColor(0xeb0000)
-        .addFields([
-            { name: "Time", value: `<t:${time}:F>` },
-            { name: "Error Message", value: `\`\`\`${error.message}\`\`\`` },
-        ]);
 
-    channel.send({ embeds: [errorEmbed] });
-});
-process.on("uncaughtException", (err) => {
-    errorlog("Uncaught Exception", err);
-    const channel = client.channels.cache.get(errorchannelid);
-    const time = Math.floor(Date.now() / 1000);
-    const errorEmbed = new EmbedBuilder()
-        .setTitle("Error")
-        .setColor(0xeb0000)
-        .addFields([
-            { name: "Time", value: `<t:${time}:F>` },
-            { name: "Error Message", value: `\`\`\`${err.message}\`\`\`` },
-        ]);
-    channel.send({ embeds: [errorEmbed] });
-});
-function translateToEnglish(text) {
-    const engLayout = {
-        ㅂ: "q",
-        ㅈ: "w",
-        ㄷ: "e",
-        ㄱ: "r",
-        ㅅ: "t",
-        ㅛ: "y",
-        ㅕ: "u",
-        ㅑ: "i",
-        ㅐ: "o",
-        ㅔ: "p",
-        ㅁ: "a",
-        ㄴ: "s",
-        ㅇ: "d",
-        ㄹ: "f",
-        ㅎ: "g",
-        ㅗ: "h",
-        ㅓ: "j",
-        ㅏ: "k",
-        ㅣ: "l",
-        ㅋ: "z",
-        ㅌ: "x",
-        ㅊ: "c",
-        ㅍ: "v",
-        ㅠ: "b",
-        ㅜ: "n",
-        ㅡ: "m",
-        ㅃ: "Q",
-        ㅉ: "W",
-        ㄸ: "E",
-        ㄲ: "R",
-        ㅆ: "T",
-        ㅒ: "O",
-        ㅖ: "P",
-    };
-
-    let result = "";
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        if (engLayout[char]) {
-            result += engLayout[char];
-        } else {
-            result += char;
-        }
-    }
-    return result;
-}
-function combineHangul(hangulString) {
-    const INITIAL_CONSONANTS = {
-        ㄱ: 0,
-        ㄲ: 1,
-        ㄴ: 2,
-        ㄷ: 3,
-        ㄸ: 4,
-        ㄹ: 5,
-        ㅁ: 6,
-        ㅂ: 7,
-        ㅃ: 8,
-        ㅅ: 9,
-        ㅆ: 10,
-        ㅇ: 11,
-        ㅈ: 12,
-        ㅉ: 13,
-        ㅊ: 14,
-        ㅋ: 15,
-        ㅌ: 16,
-        ㅍ: 17,
-        ㅎ: 18,
-    };
-
-    const MEDIAL_VOWELS = {
-        ㅏ: 0,
-        ㅐ: 1,
-        ㅑ: 2,
-        ㅒ: 3,
-        ㅓ: 4,
-        ㅔ: 5,
-        ㅕ: 6,
-        ㅖ: 7,
-        ㅗ: 8,
-        ㅘ: 9,
-        ㅙ: 10,
-        ㅚ: 11,
-        ㅛ: 12,
-        ㅜ: 13,
-        ㅝ: 14,
-        ㅞ: 15,
-        ㅟ: 16,
-        ㅠ: 17,
-        ㅡ: 18,
-        ㅢ: 19,
-        ㅣ: 20,
-    };
-
-    const FINAL_CONSONANTS = {
-        "": 0,
-        ㄱ: 1,
-        ㄲ: 2,
-        ㄳ: 3,
-        ㄴ: 4,
-        ㄵ: 5,
-        ㄶ: 6,
-        ㄷ: 7,
-        ㄹ: 8,
-        ㄺ: 9,
-        ㄻ: 10,
-        ㄼ: 11,
-        ㄽ: 12,
-        ㄾ: 13,
-        ㄿ: 14,
-        ㅀ: 15,
-        ㅁ: 16,
-        ㅂ: 17,
-        ㅄ: 18,
-        ㅅ: 19,
-        ㅆ: 20,
-        ㅇ: 21,
-        ㅈ: 22,
-        ㅊ: 23,
-        ㅋ: 24,
-        ㅌ: 25,
-        ㅍ: 26,
-        ㅎ: 27,
-    };
-
-    const HANGUL_BASE = 44032; 
-
-    let result = "";
-    let buffer = "";
-
-    for (let i = 0; i < hangulString.length; i++) {
-        const char = hangulString[i];
-        if (INITIAL_CONSONANTS[char] !== undefined) {
-            const medial = MEDIAL_VOWELS[hangulString[++i]] || 0;
-            const final = FINAL_CONSONANTS[hangulString[++i]] || 0;
-            buffer += String.fromCharCode(
-                HANGUL_BASE +
-                    INITIAL_CONSONANTS[char] * 21 * 28 +
-                    medial * 28 +
-                    final
-            );
-        } else {
-            result += buffer;
-            buffer = "";
-            result += char;
-        }
-    }
-
-    return result + buffer;
-}
-function translateToKorean(text) {
-    const korLayout = {
-        q: "ㅂ",
-        w: "ㅈ",
-        e: "ㄷ",
-        r: "ㄱ",
-        t: "ㅅ",
-        y: "ㅛ",
-        u: "ㅕ",
-        i: "ㅑ",
-        o: "ㅐ",
-        p: "ㅔ",
-        a: "ㅁ",
-        s: "ㄴ",
-        d: "ㅇ",
-        f: "ㄹ",
-        g: "ㅎ",
-        h: "ㅗ",
-        j: "ㅓ",
-        k: "ㅏ",
-        l: "ㅣ",
-        z: "ㅋ",
-        x: "ㅌ",
-        c: "ㅊ",
-        v: "ㅍ",
-        b: "ㅠ",
-        n: "ㅜ",
-        m: "ㅡ",
-        Q: "ㅃ",
-        W: "ㅉ",
-        E: "ㄸ",
-        R: "ㄲ",
-        T: "ㅆ",
-        O: "ㅒ",
-        P: "ㅖ",
-        A: "ㅁ",
-        S: "ㄴ",
-        D: "ㅇ",
-        F: "ㄹ",
-        G: "ㅎ",
-        H: "ㅗ",
-        J: "ㅓ",
-        K: "ㅏ",
-        L: "ㅣ",
-        Z: "ㅋ",
-        X: "ㅌ",
-        C: "ㅊ",
-        V: "ㅍ",
-        B: "ㅠ",
-        N: "ㅜ",
-        M: "ㅡ",
-    };
-
-    let result = "";
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        if (korLayout[char]) {
-            result += korLayout[char];
-        } else {
-            result += char;
-        }
-    }
-    return result;
-}
 client.on("messageCreate", async (message) => {
     if (message.content.startsWith("!error:")) {
         if (checkOwners(message)) {
@@ -2283,9 +2005,6 @@ client.on("messageCreate", async (message) => {
         }
     }
 
-    
-    
-    
     //     const leaveKeyword = message.content.split(" ")[1];
     //     client.guilds.cache.forEach((guild) => {
     //         if (guild.name.includes(leaveKeyword)) {
@@ -2522,7 +2241,7 @@ const getGuildSettings = async (guildId) => {
 };
 function getLastModifiedDate(file) {
     const stats = fs.statSync(file);
-    return Math.floor(stats.mtime.getTime() / 1000); 
+    return Math.floor(stats.mtime.getTime() / 1000);
 }
 /**
  *
@@ -2626,4 +2345,283 @@ function restartBot() {
         }
         console.log("Bot restarted successfully");
     });
+}
+client.on("error", async (error) => {
+    errorlog("caughtException", error.message);
+    console.log(error);
+    const channel = client.channels.cache.get(errorchannelid);
+    const time = Math.floor(Date.now() / 1000);
+    const errorEmbed = new EmbedBuilder()
+        .setTitle("Error")
+        .setColor(0xeb0000)
+        .addFields([
+            { name: "Time", value: `<t:${time}:F>` },
+            { name: "Error Message", value: `\`\`\`${error.message}\`\`\`` },
+        ]);
+
+    channel.send({ embeds: [errorEmbed] });
+});
+process.on("uncaughtException", (err) => {
+    errorlog("Uncaught Exception", err);
+    const channel = client.channels.cache.get(errorchannelid);
+    const time = Math.floor(Date.now() / 1000);
+    const errorEmbed = new EmbedBuilder()
+        .setTitle("Error")
+        .setColor(0xeb0000)
+        .addFields([
+            { name: "Time", value: `<t:${time}:F>` },
+            { name: "Error Message", value: `\`\`\`${err.message}\`\`\`` },
+        ]);
+    channel.send({ embeds: [errorEmbed] });
+});
+function translateToEnglish(text) {
+    const engLayout = {
+        ㅂ: "q",
+        ㅈ: "w",
+        ㄷ: "e",
+        ㄱ: "r",
+        ㅅ: "t",
+        ㅛ: "y",
+        ㅕ: "u",
+        ㅑ: "i",
+        ㅐ: "o",
+        ㅔ: "p",
+        ㅁ: "a",
+        ㄴ: "s",
+        ㅇ: "d",
+        ㄹ: "f",
+        ㅎ: "g",
+        ㅗ: "h",
+        ㅓ: "j",
+        ㅏ: "k",
+        ㅣ: "l",
+        ㅋ: "z",
+        ㅌ: "x",
+        ㅊ: "c",
+        ㅍ: "v",
+        ㅠ: "b",
+        ㅜ: "n",
+        ㅡ: "m",
+        ㅃ: "Q",
+        ㅉ: "W",
+        ㄸ: "E",
+        ㄲ: "R",
+        ㅆ: "T",
+        ㅒ: "O",
+        ㅖ: "P",
+    };
+
+    let result = "";
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (engLayout[char]) {
+            result += engLayout[char];
+        } else {
+            result += char;
+        }
+    }
+    return result;
+}
+function combineHangul(hangulString) {
+    const INITIAL_CONSONANTS = {
+        ㄱ: 0,
+        ㄲ: 1,
+        ㄴ: 2,
+        ㄷ: 3,
+        ㄸ: 4,
+        ㄹ: 5,
+        ㅁ: 6,
+        ㅂ: 7,
+        ㅃ: 8,
+        ㅅ: 9,
+        ㅆ: 10,
+        ㅇ: 11,
+        ㅈ: 12,
+        ㅉ: 13,
+        ㅊ: 14,
+        ㅋ: 15,
+        ㅌ: 16,
+        ㅍ: 17,
+        ㅎ: 18,
+    };
+
+    const MEDIAL_VOWELS = {
+        ㅏ: 0,
+        ㅐ: 1,
+        ㅑ: 2,
+        ㅒ: 3,
+        ㅓ: 4,
+        ㅔ: 5,
+        ㅕ: 6,
+        ㅖ: 7,
+        ㅗ: 8,
+        ㅘ: 9,
+        ㅙ: 10,
+        ㅚ: 11,
+        ㅛ: 12,
+        ㅜ: 13,
+        ㅝ: 14,
+        ㅞ: 15,
+        ㅟ: 16,
+        ㅠ: 17,
+        ㅡ: 18,
+        ㅢ: 19,
+        ㅣ: 20,
+    };
+
+    const FINAL_CONSONANTS = {
+        "": 0,
+        ㄱ: 1,
+        ㄲ: 2,
+        ㄳ: 3,
+        ㄴ: 4,
+        ㄵ: 5,
+        ㄶ: 6,
+        ㄷ: 7,
+        ㄹ: 8,
+        ㄺ: 9,
+        ㄻ: 10,
+        ㄼ: 11,
+        ㄽ: 12,
+        ㄾ: 13,
+        ㄿ: 14,
+        ㅀ: 15,
+        ㅁ: 16,
+        ㅂ: 17,
+        ㅄ: 18,
+        ㅅ: 19,
+        ㅆ: 20,
+        ㅇ: 21,
+        ㅈ: 22,
+        ㅊ: 23,
+        ㅋ: 24,
+        ㅌ: 25,
+        ㅍ: 26,
+        ㅎ: 27,
+    };
+
+    const HANGUL_BASE = 44032;
+
+    let result = "";
+    let buffer = "";
+
+    for (let i = 0; i < hangulString.length; i++) {
+        const char = hangulString[i];
+        if (INITIAL_CONSONANTS[char] !== undefined) {
+            const medial = MEDIAL_VOWELS[hangulString[++i]] || 0;
+            const final = FINAL_CONSONANTS[hangulString[++i]] || 0;
+            buffer += String.fromCharCode(
+                HANGUL_BASE +
+                    INITIAL_CONSONANTS[char] * 21 * 28 +
+                    medial * 28 +
+                    final
+            );
+        } else {
+            result += buffer;
+            buffer = "";
+            result += char;
+        }
+    }
+
+    return result + buffer;
+}
+function translateToKorean(text) {
+    const korLayout = {
+        q: "ㅂ",
+        w: "ㅈ",
+        e: "ㄷ",
+        r: "ㄱ",
+        t: "ㅅ",
+        y: "ㅛ",
+        u: "ㅕ",
+        i: "ㅑ",
+        o: "ㅐ",
+        p: "ㅔ",
+        a: "ㅁ",
+        s: "ㄴ",
+        d: "ㅇ",
+        f: "ㄹ",
+        g: "ㅎ",
+        h: "ㅗ",
+        j: "ㅓ",
+        k: "ㅏ",
+        l: "ㅣ",
+        z: "ㅋ",
+        x: "ㅌ",
+        c: "ㅊ",
+        v: "ㅍ",
+        b: "ㅠ",
+        n: "ㅜ",
+        m: "ㅡ",
+        Q: "ㅃ",
+        W: "ㅉ",
+        E: "ㄸ",
+        R: "ㄲ",
+        T: "ㅆ",
+        O: "ㅒ",
+        P: "ㅖ",
+        A: "ㅁ",
+        S: "ㄴ",
+        D: "ㅇ",
+        F: "ㄹ",
+        G: "ㅎ",
+        H: "ㅗ",
+        J: "ㅓ",
+        K: "ㅏ",
+        L: "ㅣ",
+        Z: "ㅋ",
+        X: "ㅌ",
+        C: "ㅊ",
+        V: "ㅍ",
+        B: "ㅠ",
+        N: "ㅜ",
+        M: "ㅡ",
+    };
+
+    let result = "";
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (korLayout[char]) {
+            result += korLayout[char];
+        } else {
+            result += char;
+        }
+    }
+    return result;
+}
+function infochannel(content) {
+    const channel = client.channels.cache.get(logchannelid);
+    const endTime = moment();
+    const currentTime = endTime.format("YYYY-MM-DD HH:mm:ss");
+    channel.send(`[${currentTime}] INFO: ${content}`);
+    console.log(`[${currentTime}] INFO: ${content}`);
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function toUnixTimestamp(uptimeSeconds) {
+    const now = Math.floor(Date.now() / 1000);
+    return now - uptimeSeconds;
+}
+function countLines(file, callback) {
+    fs.readFile(file, "utf8", function (err, data) {
+        if (err) {
+            return;
+        }
+        const lines = data.split("\n").length;
+        callback(lines);
+    });
+}
+function formatMonths(configuredMonths) {
+    const years = Math.floor(configuredMonths / 12);
+    const months = configuredMonths % 12;
+    if (years > 0 && months > 0) {
+        return `${years} year(s) ${months} month(s)`;
+    } else if (years > 0) {
+        return `${years} year(s)`;
+    } else if (months > 0) {
+        return `${months} month(s)`;
+    } else {
+        return "0 month(s)";
+    }
 }
